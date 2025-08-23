@@ -7,12 +7,16 @@ class PlotService {
   async getAllPlots(): Promise<Plot[]> {
     try {
       console.log('Fetching plots from:', `${API_BASE_URL}/api/plots`);
+      console.log('Environment variables:', {
+        VITE_API_URL: import.meta.env.VITE_API_URL,
+        NODE_ENV: import.meta.env.NODE_ENV,
+        DEV: import.meta.env.DEV
+      });
+      
       const response = await fetch(`${API_BASE_URL}/api/plots`, {
         headers: {
           'Content-Type': 'application/json',
         },
-        // Add timeout and better error handling
-        signal: AbortSignal.timeout(30000), // 30 second timeout
       });
       
       if (!response.ok) {
@@ -63,11 +67,13 @@ class PlotService {
       
     } catch (error) {
       console.error('Error fetching plots:', error);
-      // Only return mock data if we're in development and API is not available
-      if (import.meta.env.DEV && (error instanceof TypeError || error.name === 'TimeoutError')) {
-        console.warn('Using mock data for development');
+      
+      // Check if this is a network error (backend not running)
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.warn('Backend API not available, using mock data for development');
         return this.getMockPlots();
       }
+      
       throw error;
     }
   }

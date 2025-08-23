@@ -26,11 +26,16 @@ const MapView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Initialize map first, then load plots after a short delay
     initializeMap();
-    loadPlots();
+    
+    // Add a small delay to ensure map is fully initialized
+    const timer = setTimeout(() => {
+      loadPlots();
+    }, 100);
 
-    // Cleanup map instance on unmount
     return () => {
+      clearTimeout(timer);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -110,8 +115,25 @@ const MapView: React.FC = () => {
   };
 
   const renderPlotsOnMap = (plotsData: Plot[]) => {
+    console.log('renderPlotsOnMap called with:', plotsData.length, 'plots');
+    
     if (!mapInstanceRef.current) {
       console.error('Map instance not available for rendering plots');
+      console.log('Map ref current:', mapInstanceRef.current);
+      console.log('Map ref element:', mapRef.current);
+      
+      // Try to reinitialize map if it's missing
+      if (mapRef.current && !mapInstanceRef.current) {
+        console.log('Attempting to reinitialize map...');
+        initializeMap();
+        
+        // Retry after a short delay
+        setTimeout(() => {
+          if (mapInstanceRef.current) {
+            renderPlotsOnMap(plotsData);
+          }
+        }, 500);
+      }
       return;
     }
 
