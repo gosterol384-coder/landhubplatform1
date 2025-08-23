@@ -1,0 +1,13 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
+geoalchemy2==0.14.2
+psycopg2-binary==2.9.9
+pydantic[email]==2.5.0
+python-multipart==0.0.6
+python-dotenv==1.0.0
+alembic==1.13.1
+# Optional (for shapefile fallback import if GDAL/ogr2ogr not installed)
+fiona==1.9.5
+shapely==2.0.3
+pyproj==3.6.1
