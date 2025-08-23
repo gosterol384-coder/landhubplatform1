@@ -11,21 +11,39 @@ class PlotService {
         headers: {
           'Content-Type': 'application/json',
         },
+        // Add timeout and better error handling
+        signal: AbortSignal.timeout(30000), // 30 second timeout
       });
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
+      
       const data = await response.json();
       console.log('Received plot data:', { 
         type: data.type, 
-        featureCount: data.features?.length || 0 
+        featureCount: data.features?.length || 0,
+        sampleFeature: data.features?.[0]
       });
       
       if (!data.features || !Array.isArray(data.features)) {
         throw new Error('Invalid GeoJSON response: missing features array');
       }
       
-      return data.features.map((feature: any) => ({
+      // Enhanced data validation and transformation
+      const plots = data.features.map((feature: any, index: number) => {
+        if (!feature.properties) {
+          console.warn(`Feature ${index} missing properties`);
+          return null;
+        }
+        
+        if (!feature.geometry) {
+          console.warn(`Feature ${index} missing geometry`);
+          return null;
+        }
+        
+        return {
         id: feature.properties.id,
         plot_code: feature.properties.plot_code,
         status: feature.properties.status,
@@ -37,11 +55,16 @@ class PlotService {
         attributes: feature.properties.attributes,
         created_at: feature.properties.created_at,
         updated_at: feature.properties.updated_at
-      }));
+        };
+      }).filter(Boolean); // Remove null entries
+      
+      console.log(`Successfully processed ${plots.length} valid plots`);
+      return plots;
+      
     } catch (error) {
       console.error('Error fetching plots:', error);
       // Only return mock data if we're in development and API is not available
-      if (import.meta.env.DEV && error instanceof TypeError) {
+      if (import.meta.env.DEV && (error instanceof TypeError || error.name === 'TimeoutError')) {
         console.warn('Using mock data for development');
         return this.getMockPlots();
       }

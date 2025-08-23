@@ -6,7 +6,7 @@ export interface Plot {
   district: string;
   ward: string;
   village: string;
-  geometry: GeoJSON.Geometry;
+  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon;
   attributes?: Record<string, any>;
   created_at: string;
   updated_at: string;
