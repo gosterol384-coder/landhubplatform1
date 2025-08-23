@@ -231,6 +231,10 @@ def normalize_into_land_plots(tmp_table: str, district: str, ward: str, village:
 def seed(shapefile: str, district: str, ward: str, village: str):
     if not os.path.exists(shapefile):
         raise FileNotFoundError(shapefile)
+    
+    logger.info(f"Starting import of {shapefile}")
+    logger.info(f"Target location: {district}/{ward}/{village}")
+    
     ensure_schema()
     tmp_table = "_import_land_plots_tmp"
     with engine.begin() as conn:
@@ -239,7 +243,10 @@ def seed(shapefile: str, district: str, ward: str, village: str):
     if not imported:
         fallback_python_import(shapefile, tmp_table)
     dataset_name = os.path.basename(os.path.splitext(shapefile)[0])
+    
+    logger.info(f"Normalizing data for dataset: {dataset_name}")
     normalize_into_land_plots(tmp_table, district, ward, village, dataset_name)
+    
     # Collect sidecar files metadata (.prj, .dbf, .shx, .cpg)
     base_no_ext = os.path.splitext(shapefile)[0]
     sidecars = {ext: f"{base_no_ext}.{ext}" for ext in ["prj","dbf","shx","cpg","shp"]}
@@ -319,7 +326,30 @@ def seed(shapefile: str, district: str, ward: str, village: str):
         })
     with engine.begin() as conn:
         conn.execute(text(f"DROP TABLE IF EXISTS {tmp_table} CASCADE"))
-    logger.info("Seeding completed successfully.")
+    
+    # Final verification
+    with engine.begin() as conn:
+        result = conn.execute(text("""
+            SELECT COUNT(*) as count, 
+                   ST_XMin(ST_Extent(geometry)) as min_lon,
+                   ST_YMin(ST_Extent(geometry)) as min_lat,
+                   ST_XMax(ST_Extent(geometry)) as max_lon,
+                   ST_YMax(ST_Extent(geometry)) as max_lat
+            FROM land_plots 
+            WHERE dataset_name = :dataset_name
+        """), {"dataset_name": dataset_name})
+        stats = result.fetchone()
+        
+        logger.info(f"Import completed successfully!")
+        logger.info(f"Imported {stats.count} plots")
+        logger.info(f"Spatial extent: ({stats.min_lon:.6f}, {stats.min_lat:.6f}) to ({stats.max_lon:.6f}, {stats.max_lat:.6f})")
+        
+        if stats.count == 0:
+            logger.error("No plots were imported! Check the shapefile and import process.")
+        elif not (29 <= stats.min_lon <= 41 and -12 <= stats.min_lat <= -1):
+            logger.warning("Imported coordinates may be outside Tanzania bounds")
+        else:
+            logger.info("✅ Import validation successful")
 
 def main():
     parser = argparse.ArgumentParser(description="Seed land plots from Tanzanian shapefile")

@@ -2,9 +2,11 @@ import { Plot, OrderData } from '../types/land';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+// Add debugging and better error handling
 class PlotService {
   async getAllPlots(): Promise<Plot[]> {
     try {
+      console.log('Fetching plots from:', `${API_BASE_URL}/api/plots`);
       const response = await fetch(`${API_BASE_URL}/api/plots`, {
         headers: {
           'Content-Type': 'application/json',
@@ -14,6 +16,15 @@ class PlotService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
+      console.log('Received plot data:', { 
+        type: data.type, 
+        featureCount: data.features?.length || 0 
+      });
+      
+      if (!data.features || !Array.isArray(data.features)) {
+        throw new Error('Invalid GeoJSON response: missing features array');
+      }
+      
       return data.features.map((feature: any) => ({
         id: feature.properties.id,
         plot_code: feature.properties.plot_code,
@@ -29,8 +40,12 @@ class PlotService {
       }));
     } catch (error) {
       console.error('Error fetching plots:', error);
-      // Return mock data for development
-      return this.getMockPlots();
+      // Only return mock data if we're in development and API is not available
+      if (import.meta.env.DEV && error instanceof TypeError) {
+        console.warn('Using mock data for development');
+        return this.getMockPlots();
+      }
+      throw error;
     }
   }
 

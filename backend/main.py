@@ -89,11 +89,13 @@ async def health_check(db: Session = Depends(get_db)):
 async def get_all_plots(db: Session = Depends(get_db)):
     """Get all land plots as GeoJSON FeatureCollection"""
     try:
+        logger.info("GET /api/plots - Fetching all plots")
         plots_geojson = plot_service.get_all_plots_geojson(db)
+        feature_count = len(plots_geojson.get('features', []))
+        logger.info(f"Returning {feature_count} plot features")
         return plots_geojson
     except Exception as e:
         logger.error(f"Error fetching plots: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch plots")
 
 @app.get("/api/plots/{plot_id}")
 async def get_plot(plot_id: str, db: Session = Depends(get_db)):

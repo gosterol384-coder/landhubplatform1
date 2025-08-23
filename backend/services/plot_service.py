@@ -12,6 +12,7 @@ class PlotService:
     def get_all_plots_geojson(self, db: Session) -> Dict[str, Any]:
         """Get all plots as GeoJSON FeatureCollection"""
         try:
+            logger.info("Fetching all plots as GeoJSON")
             # Query plots with geometry as GeoJSON
             query = text("""
                 SELECT 
@@ -33,8 +34,15 @@ class PlotService:
             result = db.execute(query)
             plots = result.fetchall()
             
+            logger.info(f"Found {len(plots)} plots in database")
+            
             features = []
             for plot in plots:
+                # Validate geometry
+                if not plot.geometry:
+                    logger.warning(f"Plot {plot.plot_code} has no geometry, skipping")
+                    continue
+                    
                 feature = {
                     "type": "Feature",
                     "properties": {
@@ -53,6 +61,7 @@ class PlotService:
                 }
                 features.append(feature)
             
+            logger.info(f"Returning {len(features)} valid plot features")
             return {
                 "type": "FeatureCollection",
                 "features": features

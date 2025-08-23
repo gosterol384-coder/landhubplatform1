@@ -55,12 +55,15 @@ const MapView: React.FC = () => {
   const loadPlots = async () => {
     try {
       setLoading(true);
+      setError(null);
       const plotsData = await plotService.getAllPlots();
+      console.log('Loaded plots:', plotsData.length);
       setPlots(plotsData);
       renderPlotsOnMap(plotsData);
     } catch (err) {
-      setError('Failed to load land plots. Please try again.');
       console.error('Error loading plots:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to load land plots: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -68,6 +71,8 @@ const MapView: React.FC = () => {
 
   const renderPlotsOnMap = (plotsData: Plot[]) => {
     if (!mapInstanceRef.current) return;
+
+    console.log('Rendering plots on map:', plotsData.length);
 
     // Remove existing plot layer
     if (plotLayerRef.current) {
@@ -143,7 +148,16 @@ const MapView: React.FC = () => {
     // Fit map to plots bounds
     if (plotsData.length > 0) {
       const bounds = plotLayerRef.current.getBounds();
-      mapInstanceRef.current.fitBounds(bounds, { padding: [20, 20] });
+      if (bounds.isValid()) {
+        mapInstanceRef.current.fitBounds(bounds, { padding: [20, 20] });
+        console.log('Map fitted to bounds:', bounds);
+      } else {
+        console.warn('Invalid bounds, using default Tanzania view');
+        mapInstanceRef.current.setView([-6.369028, 34.888822], 8);
+      }
+    } else {
+      console.warn('No plots to display, using default Tanzania view');
+      mapInstanceRef.current.setView([-6.369028, 34.888822], 8);
     }
   };
 
