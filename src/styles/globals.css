@@ -85,25 +85,66 @@ body {
 /* Critical fixes for tile rendering issues */
 .leaflet-tile-container {
   opacity: 1 !important;
-  transform: translate3d(0, 0, 0); /* Force hardware acceleration */
+  transform: translate3d(0, 0, 0) !important; /* Force hardware acceleration */
+  will-change: transform;
 }
 
 .leaflet-tile {
   opacity: 1 !important;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  transform: translate3d(0, 0, 0); /* Force hardware acceleration */
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+  transform: translate3d(0, 0, 0) !important;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  will-change: transform;
+  /* CRITICAL: Prevent tile flickering */
+  transition: opacity 0.2s ease-in-out;
 }
 
 /* Fix for tile loading delays and flickering */
 .leaflet-tile-pane {
   opacity: 1 !important;
+  transform: translate3d(0, 0, 0) !important;
 }
 
 .leaflet-layer {
   opacity: 1 !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
+/* SOLUTION: Force proper map container rendering */
+.leaflet-container {
+  background: #f8f9fa !important;
+  font-family: 'Inter', sans-serif !important;
+  height: 100% !important;
+  width: 100% !important;
+  position: relative !important;
+  z-index: 0 !important;
+  /* CRITICAL: Ensure proper rendering context */
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+/* Fix for map not displaying in some browsers */
+.leaflet-container .leaflet-control-container {
+  pointer-events: none;
+}
+
+.leaflet-container .leaflet-control-container .leaflet-control {
+  pointer-events: auto;
+}
+
+/* Enhanced tile loading animation */
+.leaflet-tile-loading {
+  opacity: 0.3 !important;
+  filter: grayscale(100%);
+  transition: all 0.3s ease-in-out;
+}
+
+/* Tile error handling */
+.leaflet-tile-error {
+  background-color: #f3f4f6 !important;
+  border: 1px solid #e5e7eb !important;
 }
 
 /* Enhanced plot styling with better visual feedback */
