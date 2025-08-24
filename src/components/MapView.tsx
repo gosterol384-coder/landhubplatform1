@@ -14,6 +14,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+// Tanzania bounds for validation
+const TANZANIA_BOUNDS = {
+  north: -0.95,
+  south: -11.75,
+  east: 40.44,
+  west: 29.34
+};
 const MapView: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -27,8 +34,10 @@ const MapView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [mapInitialized, setMapInitialized] = useState(false);
   const [tilesLoaded, setTilesLoaded] = useState(false);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([-6.369028, 34.888822]);
+  const [mapZoom, setMapZoom] = useState(8);
 
-  // Initialize map with enhanced error handling and proper OSM configuration
+  // Enhanced map initialization with better Tanzania-specific configuration
   const initializeMap = useCallback(() => {
     if (!mapRef.current || mapInstanceRef.current) {
       console.log('Map already initialized or container not ready');
@@ -38,33 +47,37 @@ const MapView: React.FC = () => {
     console.log('Initializing Leaflet map...');
 
     try {
-      // Create map with optimized settings for Tanzania
+      // Create map with enhanced Tanzania-specific settings
       const map = L.map(mapRef.current, {
-        center: [-6.369028, 34.888822], // Tanzania center coordinates
-        zoom: 8,
+        center: mapCenter,
+        zoom: mapZoom,
         minZoom: 2,
         maxZoom: 19,
         zoomControl: true,
         attributionControl: true,
         preferCanvas: true, // Better performance for large datasets
         worldCopyJump: true, // Handle world wrapping
-        maxBounds: [[-90, -180], [90, 180]], // Prevent infinite panning
+        // Set reasonable bounds for Tanzania region
+        maxBounds: [
+          [TANZANIA_BOUNDS.south - 2, TANZANIA_BOUNDS.west - 2],
+          [TANZANIA_BOUNDS.north + 2, TANZANIA_BOUNDS.east + 2]
+        ],
+        maxBoundsViscosity: 0.5, // Allow some dragging outside bounds
       });
 
-      // Enhanced OpenStreetMap tile layer with comprehensive error handling
+      // Enhanced OpenStreetMap tile layer with multiple fallback servers
       const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Tanzania Land Registry',
         maxZoom: 19,
         minZoom: 1,
         subdomains: ['a', 'b', 'c'], // Use multiple subdomains for better performance
         crossOrigin: true,
-        // Enhanced error handling for tile loading
-        errorTileUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNHB4IiBmaWxsPSIjNjY2Ij5UaWxlIEVycm9yPC90ZXh0Pjwvc3ZnPg==',
-        // Retry configuration
-        retryDelay: 1000,
-        retryLimit: 3,
-        // Timeout configuration
-        timeout: 10000,
+        // Enhanced error handling with custom error tile
+        errorTileUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iI2Y0ZjRmNCIgc3Ryb2tlPSIjZGRkIiBzdHJva2Utd2lkdGg9IjEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTJweCIgZmlsbD0iIzk5OSI+TWFwIFRpbGU8L3RleHQ+PC9zdmc+',
+        // Optimized loading settings
+        keepBuffer: 2,
+        updateWhenIdle: false,
+        updateWhenZooming: false,
       });
 
       // Comprehensive tile loading event handlers
@@ -79,35 +92,38 @@ const MapView: React.FC = () => {
       });
 
       osmLayer.on('tileerror', (e: any) => {
-        console.error('OSM tile loading error:', e);
-        // Don't set error state for individual tile failures
-      });
-
-      osmLayer.on('tileloadstart', () => {
-        console.log('Tile load started');
-      });
-
-      osmLayer.on('tileload', () => {
-        console.log('Individual tile loaded');
+        console.warn('OSM tile loading error (non-critical):', e.tile.src);
       });
 
       // Add tile layer to map
       osmLayer.addTo(map);
       tileLayerRef.current = osmLayer;
 
-      // Map event handlers
+      // Enhanced map event handlers
       map.on('zoomend', () => {
-        console.log(`Map zoom level: ${map.getZoom()}`);
+        const zoom = map.getZoom();
+        setMapZoom(zoom);
+        console.log(`Map zoom level: ${zoom}`);
       });
 
       map.on('moveend', () => {
         const center = map.getCenter();
+        setMapCenter([center.lat, center.lng]);
         console.log(`Map center: ${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}`);
       });
 
       map.on('click', (e) => {
         console.log(`Map clicked at: ${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`);
+        // Close any open popups when clicking on empty map
+        map.closePopup();
       });
+
+      // Add scale control
+      L.control.scale({
+        position: 'bottomleft',
+        metric: true,
+        imperial: false
+      }).addTo(map);
 
       // Store map instance and mark as initialized
       mapInstanceRef.current = map;
@@ -158,6 +174,32 @@ const MapView: React.FC = () => {
           return false;
         }
         return true;
+        // Validate coordinates are within reasonable Tanzania bounds
+        try {
+          const coords = plot.geometry.coordinates;
+          let hasValidCoords = false;
+          
+          if (plot.geometry.type === 'Polygon') {
+            hasValidCoords = coords[0].some((coord: number[]) => 
+              coord[0] >= TANZANIA_BOUNDS.west && coord[0] <= TANZANIA_BOUNDS.east &&
+              coord[1] >= TANZANIA_BOUNDS.south && coord[1] <= TANZANIA_BOUNDS.north
+            );
+          } else if (plot.geometry.type === 'MultiPolygon') {
+            hasValidCoords = coords[0][0].some((coord: number[]) => 
+              coord[0] >= TANZANIA_BOUNDS.west && coord[0] <= TANZANIA_BOUNDS.east &&
+              coord[1] >= TANZANIA_BOUNDS.south && coord[1] <= TANZANIA_BOUNDS.north
+            );
+          }
+          
+          if (!hasValidCoords) {
+            console.warn(`Plot ${plot.plot_code} coordinates outside Tanzania bounds`);
+            return false;
+          }
+        } catch (e) {
+          console.warn(`Error validating coordinates for plot ${plot.plot_code}:`, e);
+          return false;
+        }
+        
       });
 
       console.log(`${validPlots.length} valid plots after validation`);
@@ -207,58 +249,18 @@ const MapView: React.FC = () => {
       plotLayerRef.current = null;
     }
 
-    // Validate and prepare plot data
-    const validPlots = plotsData.filter(plot => {
-      if (!plot.geometry) {
-        console.warn(`Plot ${plot.plot_code} has no geometry, skipping`);
-        return false;
-      }
-      
-      if (!plot.geometry.coordinates || plot.geometry.coordinates.length === 0) {
-        console.warn(`Plot ${plot.plot_code} has invalid coordinates, skipping`);
-        return false;
-      }
-      
-      // Validate coordinate bounds (should be within reasonable Tanzania bounds)
-      const coords = plot.geometry.coordinates;
-      let validCoords = true;
-      
-      try {
-        if (plot.geometry.type === 'Polygon') {
-          coords[0].forEach((coord: number[]) => {
-            if (coord[0] < 28 || coord[0] > 42 || coord[1] < -13 || coord[1] > 0) {
-              console.warn(`Plot ${plot.plot_code} has coordinates outside Tanzania bounds`);
-              validCoords = false;
-            }
-          });
-        } else if (plot.geometry.type === 'MultiPolygon') {
-          coords[0][0].forEach((coord: number[]) => {
-            if (coord[0] < 28 || coord[0] > 42 || coord[1] < -13 || coord[1] > 0) {
-              console.warn(`Plot ${plot.plot_code} has coordinates outside Tanzania bounds`);
-              validCoords = false;
-            }
-          });
-        }
-      } catch (e) {
-        console.warn(`Error validating coordinates for plot ${plot.plot_code}:`, e);
-        validCoords = false;
-      }
-      
-      return validCoords;
-    });
-
-    if (validPlots.length === 0) {
+    if (plotsData.length === 0) {
       console.error('No valid plots to render after validation');
       setError('No valid plot geometries found');
       return;
     }
 
-    console.log(`Rendering ${validPlots.length} valid plots`);
+    console.log(`Rendering ${plotsData.length} plots`);
 
     // Convert plots to proper GeoJSON format with enhanced structure
     const geoJsonData = {
       type: 'FeatureCollection' as const,
-      features: validPlots.map(plot => {
+      features: plotsData.map(plot => {
         // Ensure geometry is properly formatted for Leaflet
         let geometry = plot.geometry;
         
@@ -423,14 +425,21 @@ const MapView: React.FC = () => {
         plotLayerRef.current.addTo(mapInstanceRef.current);
         console.log('Plot layer added to map successfully');
 
-        // Fit map to plots bounds with intelligent padding
+        // Smart map bounds fitting
         const bounds = plotLayerRef.current.getBounds();
         if (bounds.isValid()) {
-          const padding = Math.max(20, Math.min(100, window.innerWidth * 0.1));
-          mapInstanceRef.current.fitBounds(bounds, { 
-            padding: [padding, padding],
-            maxZoom: 15 // Prevent zooming too close for large datasets
-          });
+          // Only fit bounds if plots are clustered in a small area
+          const boundsSize = bounds.getNorthEast().distanceTo(bounds.getSouthWest());
+          if (boundsSize < 100000) { // Less than 100km
+            const padding = Math.max(20, Math.min(100, window.innerWidth * 0.1));
+            mapInstanceRef.current.fitBounds(bounds, { 
+              padding: [padding, padding],
+              maxZoom: 15
+            });
+          } else {
+            // For widely distributed plots, use a reasonable Tanzania view
+            mapInstanceRef.current.setView([-6.369028, 34.888822], 8);
+          }
           console.log('Map fitted to plot bounds:', bounds);
         } else {
           console.warn('Invalid bounds, using default Tanzania view');
@@ -510,9 +519,14 @@ const MapView: React.FC = () => {
       setSelectedPlot(null);
       
       console.log('Order submitted successfully');
+      
+      // Show success message
+      alert(`Order submitted successfully for plot ${selectedPlot.plot_code}! The plot status has been updated to pending.`);
+      
     } catch (err) {
       console.error('Error creating order:', err);
-      alert('Failed to submit order. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to submit order: ${errorMessage}. Please try again.`);
     }
   };
 

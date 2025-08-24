@@ -27,7 +27,10 @@ engine = create_engine(
     max_overflow=20,
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=False  # Set to True for SQL debugging
+    echo=False,  # Set to True for SQL debugging
+    connect_args={
+        "options": "-c timezone=UTC"
+    }
 )
 
 # Create session factory
@@ -36,6 +39,27 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Create base class for models
 Base = declarative_base()
 
+def create_tables():
+    """Create all database tables"""
+    try:
+        # Import models to ensure they're registered
+        from models import LandPlot, PlotOrder, ShapefileImport
+        
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+        
+        # Ensure PostGIS extension
+        with engine.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\""))
+            conn.commit()
+            logger.info("PostGIS extension ensured")
+            
+        return True
+    except Exception as e:
+        logger.error(f"Error creating tables: {e}")
+        return False
 def get_db():
     """Dependency to get database session"""
     db = SessionLocal()
@@ -61,10 +85,18 @@ def test_connection():
             postgis_version = result.fetchone()[0]
             logger.info(f"PostGIS version: {postgis_version}")
             
+            # Test spatial functions
+            result = conn.execute(text("""
+                SELECT ST_AsText(ST_GeomFromText('POINT(0 0)', 4326))
+            """))
+            point_test = result.fetchone()[0]
+            logger.info(f"Spatial function test: {point_test}")
+            
             return True
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         return False
 
 if __name__ == "__main__":
-    test_connection()
+    if test_connection():
+        create_tables()
