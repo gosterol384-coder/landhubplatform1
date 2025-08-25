@@ -23,13 +23,14 @@ if DATABASE_URL.startswith("postgres://"):
 # Create engine with connection pooling
 engine = create_engine(
     DATABASE_URL,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=20,
+    max_overflow=30,
     pool_pre_ping=True,
     pool_recycle=300,
     echo=False,  # Set to True for SQL debugging
     connect_args={
-        "options": "-c timezone=UTC"
+        "options": "-c timezone=UTC",
+        "application_name": "tanzania_land_system"
     }
 )
 

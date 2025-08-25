@@ -217,7 +217,11 @@ const MapView: React.FC = () => {
 
       map.on('click', (e) => {
         console.log(`🖱️ Map clicked at: ${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`);
-        maxZoom: 19,
+      });
+
+      // Add scale control with proper configuration
+      L.control.scale({
+        maxWidth: 200,
         metric: true,
         imperial: false,
         updateWhenIdle: true
@@ -236,11 +240,6 @@ const MapView: React.FC = () => {
 
   // SOLUTION 7: Enhanced plot loading with better error handling
   const loadPlots = useCallback(async () => {
-    if (!mapInitialized) {
-      console.log('⏳ Map not initialized yet, skipping plot loading');
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
@@ -250,14 +249,14 @@ const MapView: React.FC = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
       
-      const plotsData = await plotService.getAllPlots();
+      const plotsData = await plotService.getAllPlots({ signal: controller.signal });
       clearTimeout(timeoutId);
       
       console.log(`📈 Loaded ${plotsData.length} plots from API`);
       
       if (plotsData.length === 0) {
         console.warn('⚠️ No plots received from API');
-        setError('No land plots available to display. Please check if the database has been seeded.');
+        setError('No land plots available to display. Please run the enhanced seed script to import the test_mbuyuni shapefile data.');
         return;
       }
       

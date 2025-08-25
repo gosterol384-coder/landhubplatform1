@@ -51,15 +51,19 @@ class PlotService {
       console.log('Raw API response:', data);
       
       if (!data || typeof data !== 'object') {
-        throw new Error('Invalid response format from server');
+        throw new Error('Invalid response format from server. Please check if the backend is running.');
       }
       
       if (data.type !== 'FeatureCollection') {
-        throw new Error('Expected GeoJSON FeatureCollection format');
+        throw new Error('Expected GeoJSON FeatureCollection format. The API may be returning incorrect data.');
       }
       
       if (!Array.isArray(data.features)) {
-        throw new Error('Invalid features array in response');
+        throw new Error('Invalid features array in response. The shapefile data may not be properly imported.');
+      }
+      
+      if (data.features.length === 0) {
+        throw new Error('No land plots found. Please run the database seed script to import shapefile data.');
       }
       
       // Transform GeoJSON features to Plot objects
